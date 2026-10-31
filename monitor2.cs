@@ -71,7 +71,10 @@ namespace LeigodMonitor
 
         void UpdateStatus()
         {
-            statusText = Process.GetProcessesByName(ProcessName).Any() ? "雷神：已开启" : "雷神：未开启";
+            bool active = Process.GetProcessesByName(ProcessName).Any();
+            statusText = active ? "雷神：已开启" : "雷神：未开启";
+            fontColor = active ? Color.Red : Color.White;
+            label.ForeColor = fontColor;
             TopMost = true;
             Invalidate();
             Position();
@@ -95,16 +98,6 @@ namespace LeigodMonitor
                 sizes.DropDownItems.Add(x);
             }
             m.Items.Add(sizes);
-            var colors = new ToolStripMenuItem("字体颜色");
-            AddColorItem(colors, "白色", Color.White);
-            AddColorItem(colors, "绿色", Color.LimeGreen);
-            AddColorItem(colors, "黄色", Color.Yellow);
-            AddColorItem(colors, "红色", Color.Red);
-            AddColorItem(colors, "蓝色", Color.DeepSkyBlue);
-            var custom = new ToolStripMenuItem("自定义颜色...");
-            custom.Click += delegate { using (var dialog = new ColorDialog { Color = fontColor, FullOpen = true }) { if (dialog.ShowDialog() == DialogResult.OK) SetFontColor(dialog.Color); } };
-            colors.DropDownItems.Add(custom);
-            m.Items.Add(colors);
             var boot = new ToolStripMenuItem("开机自动启动") { Checked = startup, CheckOnClick = true };
             boot.Click += delegate(object s, EventArgs e) { startup = ((ToolStripMenuItem)s).Checked; SetStartup(startup); SaveConfig(); };
             m.Items.Add(boot);
@@ -113,24 +106,6 @@ namespace LeigodMonitor
             quit.Click += delegate { Close(); };
             m.Items.Add(quit);
             return m;
-        }
-
-        void AddColorItem(ToolStripMenuItem parent, string text, Color color)
-        {
-            var item = new ToolStripMenuItem(text) { Tag = color, Checked = fontColor.ToArgb() == color.ToArgb() };
-            item.Click += delegate(object s, EventArgs e) { SetFontColor((Color)((ToolStripMenuItem)s).Tag); };
-            parent.DropDownItems.Add(item);
-        }
-
-        void SetFontColor(Color color)
-        {
-            fontColor = color;
-            label.ForeColor = color;
-            Invalidate();
-            SaveConfig();
-            var old = tray.ContextMenuStrip;
-            tray.ContextMenuStrip = BuildMenu();
-            old.Dispose();
         }
 
         void SetFontSize(int n)
@@ -154,12 +129,6 @@ namespace LeigodMonitor
                 {
                     if (line.StartsWith("FontSize=")) float.TryParse(line.Substring(9), out fontSize);
                     if (line.StartsWith("Startup=")) bool.TryParse(line.Substring(8), out startup);
-                    if (line.StartsWith("Color="))
-                    {
-                        var c = line.Substring(6).Split(',');
-                        int r, g, b;
-                        if (c.Length == 3 && int.TryParse(c[0], out r) && int.TryParse(c[1], out g) && int.TryParse(c[2], out b)) fontColor = Color.FromArgb(Math.Max(0, Math.Min(255, r)), Math.Max(0, Math.Min(255, g)), Math.Max(0, Math.Min(255, b)));
-                    }
                 }
                 if (fontSize < 8 || fontSize > 100) fontSize = 20;
             }
@@ -168,7 +137,7 @@ namespace LeigodMonitor
 
         void SaveConfig()
         {
-            try { Directory.CreateDirectory(Path.GetDirectoryName(config)); File.WriteAllLines(config, new[] { "FontSize=" + fontSize, "Startup=" + startup, "Color=" + fontColor.R + "," + fontColor.G + "," + fontColor.B }); } catch { }
+            try { Directory.CreateDirectory(Path.GetDirectoryName(config)); File.WriteAllLines(config, new[] { "FontSize=" + fontSize, "Startup=" + startup }); } catch { }
         }
 
         void SetStartup(bool enabled)
